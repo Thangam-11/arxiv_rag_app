@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: arxiv
+      POSTGRES_PASSWORD: arxiv
+      POSTGRES_DB: arxiv_db
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arxiv"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  arxiv_app:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./src:/app
+    working_dir: /app
+    command: python main.py
+
+  airflow:
+    image: apache/airflow:2.8.1
+    env_file:
+      - .env
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: standalone
+
+volumes:
+  pg_data:
+
